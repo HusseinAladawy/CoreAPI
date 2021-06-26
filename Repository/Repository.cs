@@ -33,8 +33,7 @@ namespace EmployeeManagement.Api.Repository
             if (result != null)
             {
                 table.Remove(result);
-                Save();
-
+                await context.SaveChangesAsync();
             }
         }
 
@@ -58,7 +57,7 @@ namespace EmployeeManagement.Api.Repository
         public async Task<T> Insert(T entity)
         {
             var result = await table.AddAsync(entity);
-            Save();
+           await context.SaveChangesAsync();
             return result.Entity;
         }
 
@@ -67,14 +66,11 @@ namespace EmployeeManagement.Api.Repository
         public async Task<T> Update(T entity)
         {
 
-            table.Attach(entity);
-            context.Entry(entity).State = EntityState.Modified;          
-            Save();
-            return entity;
-
-
-
-
+          table.Attach(entity);
+          context.Entry(entity).State = EntityState.Modified;
+            
+          await context.SaveChangesAsync();
+          return entity;
         }
         public async Task Save()
         {
