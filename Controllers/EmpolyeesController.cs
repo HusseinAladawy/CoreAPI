@@ -1,8 +1,11 @@
-﻿using EmployeeManagement.Api.Repository;
+using EmployeeManagement.Api.Model;
+using EmployeeManagement.Api.Repository;
 using EmployeeManagement.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,16 +18,41 @@ namespace EmployeeManagement.Api.Controllers
     [ApiController]
     public class EmployeesController:ControllerBase
     {
+        private AppDbContext context = null;
         private readonly IRepository<Employee> repository;
+        private readonly IMemoryCache memoryCache;
+       // private readonly IEmployeeRepository employee_repository;
 
-        public EmployeesController(IRepository<Employee> repository)
+
+        public EmployeesController(IRepository<Employee> repository,IMemoryCache memoryCache)
         {
             this.repository = repository;
+            this.memoryCache = memoryCache;
+         //   this.employee_repository = new EmployeeRepository();
+          
+            
         }
         [HttpGet]
         public async Task<ActionResult> GetEmployees()
         {
-            return Ok(await repository.GetAll());
+            //var employees = await repository.GetAll();
+
+            if (!memoryCache.TryGetValue("data", out IEnumerable<Employee> employees))
+            {
+                employees = await repository.GetAll();
+
+                var cacheOptions = new MemoryCacheEntryOptions()
+                {
+                    AbsoluteExpiration = DateTime.Now.AddDays(1)
+
+                };
+                memoryCache.Set("data", employees);
+
+
+            }
+
+
+            return Ok(employees);
         }
         [HttpGet("{id}")]
         public async Task<ActionResult<Employee>> GetEmployee(int id)
@@ -72,6 +100,18 @@ namespace EmployeeManagement.Api.Controllers
           
            
         }
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> DeleteEmployee(int id)
+        {
+            var result = await repository.GetById(id);
+            if (result==null)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, "this user doesn't exist");
+            }
+            await repository.Delete(result);
+            return Ok("the employee deleted successfully");  
+                  
+        }
         [HttpPut]
         public async Task<ActionResult< Employee>> UpdateEmployee(Employee employee)
         {
@@ -80,15 +120,30 @@ namespace EmployeeManagement.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError,"Error Updating data");
             }
 
-            var result =await repository.Update(employee);
-            await repository.Save();
-            
 
-
-
-
-            return result;
+            return await repository.Update(employee);
             
         }
+       // [HttpGet("{Search}")]
+        //public async Task<ActionResult<IEnumerable<Employee>>> SearchEmployees(string name,Gender? gender)
+        //{
+
+        //   var result =await employee_repository.SearchEmployees(name, gender);
+
+        //    if (result.Any())
+        //    {
+        //        return Ok(result);
+        //    }
+        //    else
+        //    {
+        //        return StatusCode(StatusCodes.Status500InternalServerError, "No data for this search");
+        //    }
+
+
+               
+
+        //}
+
     }
 }
+
